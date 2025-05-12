@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LCS/LCSstr DPテーブル埋め込みデモ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        margin-top: 20px;
+      }
+      h1,
+      h2 {
+        color: #333;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+      .controls label {
+        margin-right: 10px;
+        font-weight: bold;
+      }
+      .controls input[type="text"],
+      .controls select {
+        padding: 8px;
+        margin-right: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      table {
+        border-collapse: collapse; /* セルの境界線を重ねる */
+        margin: 20px auto; /* 上下の余白と左右中央揃え */
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* テーブルに影をつける */
+      }
+      /* テーブルのセル（th, td）のスタイル */
+      table,
+      th,
+      td {
+        border: 1px solid #ddd; /* セルに枠線をつける */
+        padding: 10px; /* セル内の余白 */
+        text-align: center; /* セル内のテキストを中央寄せ */
+        width: 40px; /* セルの幅 */
+        height: 40px; /* セルの高さ */
+        font-size: 14px;
+      }
+      th {
+        background-color: #f2f2f2; /* ヘッダーセルの背景色 */
+        font-weight: bold;
+      }
+      td {
+        background-color: #fff; /* データセルの背景色 */
+      }
+      /* 計算中のセルをハイライト */
+      td.calculating {
+        background-color: #ffff99; /* 薄い黄色 */
+        font-weight: bold;
+      }
+      /* 参照されたセルをハイライト */
+      td.referenced {
+        background-color: #cceeff; /* 薄い青 */
+      }
+      /* 一致した場合のセルをハイライト */
+      td.match {
+        background-color: #ccffcc; /* 薄い緑 */
+        font-weight: bold;
+      }
+      .buttons {
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px; /* 角を丸くする */
+        margin: 0 10px; /* ボタン間の余白 */
+        transition: background-color 0.3s ease; /* ホバー時のアニメーション */
+      }
+      button#nextStepButton {
+        background-color: #5cb85c; /* 緑色 */
+        color: white;
+      }
+      button#nextStepButton:hover:not(:disabled) {
+        background-color: #4cae4c; /* ホバー時の少し濃い緑 */
+      }
+      button#resetButton {
+        background-color: #f0ad4e; /* オレンジ色 */
+        color: white;
+      }
+      button#resetButton:hover:not(:disabled) {
+        background-color: #ec971f; /* ホバー時の少し濃いオレンジ */
+      }
+      /* ボタンが無効化された時のスタイル */
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        color: #666;
+      }
+      .strings {
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+      .strings span {
+        font-weight: bold;
+        color: #007bff; /* 青色 */
+      }
+      .result {
+        margin-top: 20px;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #d9534f; /* 赤色 */
+      }
+      .formula {
+        margin-top: 15px;
+        font-size: 1.1em;
+        color: #555;
+        min-height: 1.5em; /* 式が表示されないときも高さを確保 */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>最長共通部分列/文字列 (LCS/LCSstr) DPテーブル</h1>
+
+    <div class="controls">
+      <label for="s1Input">文字列 S1:</label>
+      <input type="text" id="s1Input" value="zbcdf" />
+      <label for="s2Input">文字列 S2:</label>
+      <input type="text" id="s2Input" value="abcdf" />
+      <label for="algorithmSelect">アルゴリズム:</label>
+      <select id="algorithmSelect">
+        <option value="lcs">最長共通部分列 (LCS)</option>
+        <option value="lcsstr">最長共通部分文字列 (LCSstr)</option>
+      </select>
+    </div>
+
+    <div class="strings">
+      現在の文字列 S1: <span id="currentS1">zbcdf</span><br />
+      現在の文字列 S2: <span id="currentS2">abcdf</span>
+    </div>
+
+    <table id="lcsTable">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="buttons">
+      <button id="nextStepButton" disabled>次のセルを計算</button>
+      <button id="resetButton">テーブルをリセット</button>
+    </div>
+
+    <div id="formulaDisplay" class="formula"></div>
+
+    <div id="result" class="result"></div>
+    <script>
+      // JavaScriptで必要な要素を取得
+      const s1Input = document.getElementById("s1Input");
+      const s2Input = document.getElementById("s2Input");
+      const algorithmSelect = document.getElementById("algorithmSelect");
+      const currentS1Span = document.getElementById("currentS1");
+      const currentS2Span = document.getElementById("currentS2");
+      const lcsTable = document.getElementById("lcsTable");
+      const nextStepButton = document.getElementById("nextStepButton");
+      const resetButton = document.getElementById("resetButton");
+      const formulaDisplay = document.getElementById("formulaDisplay"); // 計算式表示エリア
+      const resultDiv = document.getElementById("result"); // 結果表示エリア
+
+      let s1 = ""; // 文字列 S1 (DP用に先頭にダミー文字を追加したもの)
+      let s2 = ""; // 文字列 S2 (DP用に先頭にダミー文字を追加したもの)
+      let dp = []; // DPテーブルをJavaScriptの2次元配列として保持
+      let currentRow = 0; // 現在計算中のセルの行インデックス
+      let currentCol = 0; // 現在計算中のセルの列インデックス
+      let currentAlgorithm = "lcs"; // 現在選択されているアルゴリズム ('lcs' or 'lcsstr')
+
+      // テーブルを初期化し、文字列に基づいて生成する関数
+      function initializeTable() {
+        s1 = " " + s1Input.value; // 入力値を取得し、DP用に先頭にダミー文字を追加
+        s2 = " " + s2Input.value; // 入力値を取得し、DP用に先頭にダミー文字を追加
+        currentAlgorithm = algorithmSelect.value; // 選択されているアルゴリズムを取得
+
+        // 現在の文字列表示を更新
+        currentS1Span.textContent = s1Input.value;
+        currentS2Span.textContent = s2Input.value;
+        resultDiv.textContent = ""; // 結果表示エリアをクリア
+        formulaDisplay.textContent = ""; // 計算式表示エリアをクリア
+
+        // DPテーブル（JavaScript配列）を初期化
+        dp = Array(s1.length)
+          .fill(null)
+          .map(() => Array(s2.length).fill(0));
+
+        // HTMLテーブルの内容をクリア
+        lcsTable.innerHTML = "";
+
+        // テーブルヘッダー (<thead>) を生成
+        const thead = lcsTable.createTHead();
+        let headerRow = thead.insertRow();
+        headerRow.insertCell().textContent = ""; // 左上の空セル
+        headerRow.insertCell().innerHTML = "&epsilon;"; // S2の空文字列
+
+        // S2の各文字をヘッダーに追加
+        for (let j = 1; j < s2.length; j++) {
+          headerRow.insertCell().textContent = s2[j];
+        }
+
+        // テーブルボディ (<tbody>) を生成
+        const tbody = lcsTable.createTBody();
+
+        // テーブルの各行とセルを生成
+        for (let i = 0; i < s1.length; i++) {
+          let row = tbody.insertRow();
+          const th = document.createElement("th");
+          th.innerHTML = i === 0 ? "&epsilon;" : s1[i]; // S1の空文字列または文字
+          row.appendChild(th);
+
+          for (let j = 0; j < s2.length; j++) {
+            const td = row.insertCell();
+            td.id = `cell-${i}-${j}`; // セルにIDを設定
+            td.textContent = dp[i][j]; // 初期値（0）を設定
+          }
+        }
+
+        // 計算位置をリセット
+        currentRow = 1;
+        currentCol = 1;
+
+        // ボタンの状態をリセット
+        nextStepButton.disabled = false; // 計算ボタンを有効化
+        nextStepButton.textContent = "次のセルを計算"; // ボタンのテキストをリセット
+
+        // 前回のハイライトを全て解除
+        document
+          .querySelectorAll(".calculating, .referenced, .match")
+          .forEach((cell) => {
+            cell.classList.remove("calculating", "referenced", "match");
+            cell.style.backgroundColor = "#fff"; // 背景色をデフォルトに戻す
+            cell.style.fontWeight = "normal"; // フォントスタイルをデフォルトに戻す
+          });
+      }
+
+      // ページの読み込み時にテーブルを初期化
+      window.onload = initializeTable;
+
+      // 「次のセルを計算」ボタンがクリックされた時の処理
+      nextStepButton.addEventListener("click", () => {
+        // 計算中のセルがテーブルの範囲内か確認
+        if (currentRow < s1.length) {
+          // 現在のセルに対応するHTML要素を取得
+          const currentCell = document.getElementById(
+            `cell-${currentRow}-${currentCol}`
+          );
+
+          // 前回のハイライトを全て解除
+          document
+            .querySelectorAll(".calculating, .referenced, .match")
+            .forEach((cell) => {
+              cell.classList.remove("calculating", "referenced", "match");
+              cell.style.backgroundColor = "#fff"; // 背景色をデフォルトに戻す
+              cell.style.fontWeight = "normal"; // フォントスタイルをデフォルトに戻す
+            });
+
+          // 現在計算中のセルをハイライト
+          currentCell.classList.add("calculating");
+          currentCell.style.backgroundColor = "#ffff99"; // 薄い黄色
+
+          let formulaText = ""; // 表示する計算式テキスト
+
+          // 選択されているアルゴリズムに基づいて値を計算
+          // s1のcurrentRow-1番目の文字と s2のcurrentCol-1番目の文字を比較 (JavaScript配列は0-based)
+          if (s1[currentRow] === s2[currentCol]) {
+            // 文字が一致する場合
+            // LCSもLCSstrも同じ漸化式
+            dp[currentRow][currentCol] = dp[currentRow - 1][currentCol - 1] + 1;
+            currentCell.classList.add("match"); // 一致した場合のクラスを追加
+            currentCell.style.backgroundColor = "#ccffcc"; // 薄い緑
+            formulaText = `S1の ${s1[currentRow]} と S2の ${
+              s2[currentCol]
+            } が一致します。 dp[${currentRow}][${currentCol}] = dp[${
+              currentRow - 1
+            }][${currentCol - 1}] + 1`;
+
+            // 参照元のセルをハイライト (dp[i-1][j-1])
+            const refCell = document.getElementById(
+              `cell-${currentRow - 1}-${currentCol - 1}`
+            );
+            if (refCell) {
+              refCell.classList.add("referenced");
+              refCell.style.backgroundColor = "#cceeff"; // 薄い青
+            }
+          } else {
+            // 文字が一致しない場合
+            if (currentAlgorithm === "lcs") {
+              // LCSの漸化式: max(dp[i-1][j], dp[i][j-1])
+              const value1 = dp[currentRow - 1][currentCol]; // 上のセル
+              const value2 = dp[currentRow][currentCol - 1]; // 左のセル
+              dp[currentRow][currentCol] = Math.max(value1, value2);
+              formulaText = `S1の ${s1[currentRow]} と S2の ${
+                s2[currentCol]
+              } は一致しません (LCS)。 dp[${currentRow}][${currentCol}] = max(dp[${
+                currentRow - 1
+              }][${currentCol}], dp[${currentRow}][${currentCol - 1}])`;
+
+              // 参照元のセルをハイライト (dp[i-1][j] と dp[i][j-1])
+              const refCell1 = document.getElementById(
+                `cell-${currentRow - 1}-${currentCol}`
+              );
+              const refCell2 = document.getElementById(
+                `cell-${currentRow}-${currentCol - 1}`
+              );
+              if (refCell1) {
+                refCell1.classList.add("referenced");
+                refCell1.style.backgroundColor = "#cceeff"; // 薄い青
+              }
+              if (refCell2) {
+                refCell2.classList.add("referenced");
+                refCell2.style.backgroundColor = "#cceeff"; // 薄い青
+              }
+            } else {
+              // currentAlgorithm === 'lcsstr'
+              // LCSstrの漸化式: 0
+              dp[currentRow][currentCol] = 0;
+              formulaText = `S1の ${s1[currentRow]} と S2の ${s2[currentCol]} は一致しません (LCSstr)。 dp[${currentRow}][${currentCol}] = 0`;
+              // LCSstrで一致しない場合は参照元なし
+            }
+          }
+
+          // 計算結果をHTMLテーブルに表示
+          currentCell.textContent = dp[currentRow][currentCol];
+          currentCell.style.fontWeight = "bold"; // 計算済みのセルは太字に
+
+          // 計算式表示エリアを更新
+          formulaDisplay.textContent = formulaText;
+
+          // 次の計算位置に進む
+          currentCol++;
+          if (currentCol >= s2.length) {
+            // 現在の行の最後まで計算したら、次の行の先頭へ
+            currentCol = 1;
+            currentRow++;
+          }
+
+          // 全てのセルを埋め終わったか確認
+          if (currentRow >= s1.length) {
+            nextStepButton.disabled = true; // ボタンを無効化
+
+            let finalResult = 0;
+            let resultText = "";
+            formulaDisplay.textContent = "計算完了！"; // 計算式表示を完了に
+
+            if (currentAlgorithm === "lcs") {
+              // LCSの最終結果は右下隅のセル
+              finalResult = dp[s1.length - 1][s2.length - 1];
+              resultText = "LCSの長さ: " + finalResult;
+              // 最後のセルをハイライト（完了色）
+              const finalCell = document.getElementById(
+                `cell-${s1.length - 1}-${s2.length - 1}`
+              );
+              if (finalCell) {
+                finalCell.style.backgroundColor = "#aaffaa"; // 完了したセルを緑色に
+                finalCell.style.fontWeight = "bold";
+                finalCell.classList.remove("calculating"); // 計算中クラスを削除
+              }
+            } else {
+              // currentAlgorithm === 'lcsstr'
+              // LCSstrの最終結果はDPテーブル全体の最大値
+              finalResult = Math.max(...dp.flat()); // 2次元配列をフラットにして最大値を取得
+              resultText = "LCSstrの長さ: " + finalResult;
+
+              // LCSstrの場合はテーブル全体の最大値を持つセルをハイライト
+              let maxRow = -1,
+                maxCol = -1;
+              let maxValue = -1;
+              for (let i = 0; i < s1.length; i++) {
+                for (let j = 0; j < s2.length; j++) {
+                  if (dp[i][j] > maxValue) {
+                    maxValue = dp[i][j];
+                    maxRow = i;
+                    maxCol = j;
+                  }
+                }
+              }
+              const maxCell = document.getElementById(
+                `cell-${maxRow}-${maxCol}`
+              );
+              if (maxCell) {
+                maxCell.style.backgroundColor = "#aaffaa"; // 完了したセルを緑色に
+                maxCell.style.fontWeight = "bold";
+                maxCell.classList.remove("calculating"); // 計算中クラスを削除
+              }
+            }
+            nextStepButton.textContent = "計算完了！"; // ボタンのテキストを更新
+            resultDiv.textContent = resultText; // 結果表示エリアに表示
+          }
+        }
+        // もし全てのセルが埋まっていたら、このイベントリスナーは何もしない
+      });
+
+      // 「テーブルをリセット」ボタンがクリックされた時の処理
+      resetButton.addEventListener("click", initializeTable);
+
+      // アルゴリズム選択が変更された時もテーブルをリセット
+      algorithmSelect.addEventListener("change", initializeTable);
+    </script>
+  </body>
+</html>

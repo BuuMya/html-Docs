@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>フィボナッチ数列 DP計算デモ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        margin-top: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+      .controls label {
+        margin-right: 10px;
+        font-weight: bold;
+      }
+      .controls input[type="number"] {
+        padding: 8px;
+        margin-right: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 60px; /* 幅を調整 */
+        text-align: center;
+      }
+      .dp-table-container {
+        margin: 20px auto;
+        display: flex; /* 横並びにする */
+        justify-content: center; /* 中央寄せ */
+        flex-wrap: wrap; /* 要素が多すぎるときに折り返す */
+      }
+      .dp-cell {
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 5px; /* セル間の余白 */
+        text-align: center;
+        width: 50px; /* セルの幅 */
+        height: 50px; /* セルの高さ */
+        display: flex; /* 内容を中央寄せ */
+        flex-direction: column; /* 項目と値を縦に並べる */
+        justify-content: center;
+        align-items: center;
+        font-size: 14px;
+        background-color: #fff;
+        border-radius: 4px; /* 角を丸くする */
+        box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2); /* セルに影 */
+        transition: background-color 0.3s ease, transform 0.1s ease; /* アニメーション */
+      }
+      .dp-cell .index {
+        font-size: 0.8em;
+        color: #555;
+      }
+      .dp-cell .value {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-top: 3px;
+      }
+
+      /* 計算中のセルをハイライト */
+      .dp-cell.calculating {
+        background-color: #ffff99; /* 薄い黄色 */
+        transform: scale(1.1); /* 少し拡大 */
+      }
+      /* 参照されたセルをハイライト */
+      .dp-cell.referenced {
+        background-color: #cceeff; /* 薄い青 */
+      }
+      /* 計算完了したセル */
+      .dp-cell.calculated {
+        font-weight: bold;
+      }
+
+      .buttons {
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px; /* 角を丸くする */
+        margin: 0 10px; /* ボタン間の余白 */
+        transition: background-color 0.3s ease; /* ホバー時のアニメーション */
+      }
+      button#nextStepButton {
+        background-color: #5cb85c; /* 緑色 */
+        color: white;
+      }
+      button#nextStepButton:hover:not(:disabled) {
+        background-color: #4cae4c; /* ホバー時の少し濃い緑 */
+      }
+      button#resetButton {
+        background-color: #f0ad4e; /* オレンジ色 */
+        color: white;
+      }
+      button#resetButton:hover:not(:disabled) {
+        background-color: #ec971f; /* ホバー時の少し濃いオレンジ */
+      }
+      /* ボタンが無効化された時のスタイル */
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        color: #666;
+      }
+      .formula {
+        margin-top: 15px;
+        font-size: 1.1em;
+        color: #555;
+        min-height: 1.5em; /* 式が表示されないときも高さを確保 */
+      }
+      .result {
+        margin-top: 20px;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #d9534f; /* 赤色 */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>フィボナッチ数列 DP計算デモ</h1>
+
+    <div class="controls">
+      <label for="nInput">計算する項 (n):</label>
+      <input type="number" id="nInput" value="10" min="0" />
+    </div>
+
+    <div id="dpTableContainer" class="dp-table-container"></div>
+
+    <div class="buttons">
+      <button id="nextStepButton" disabled>次の項を計算</button>
+      <button id="resetButton">リセット</button>
+    </div>
+
+    <div id="formulaDisplay" class="formula"></div>
+
+    <div id="result" class="result"></div>
+    <script>
+      // JavaScriptで必要な要素を取得
+      const nInput = document.getElementById("nInput");
+      const dpTableContainer = document.getElementById("dpTableContainer");
+      const nextStepButton = document.getElementById("nextStepButton");
+      const resetButton = document.getElementById("resetButton");
+      const formulaDisplay = document.getElementById("formulaDisplay"); // 計算式表示エリア
+      const resultDiv = document.getElementById("result"); // 結果表示エリア
+
+      let n = 0; // 計算する項
+      let dp = []; // DPテーブル（JavaScript配列）
+      let currentIndex = 0; // 現在計算中の項のインデックス
+
+      // DPテーブル（HTML表示）を初期化し、生成する関数
+      function initializeFibonacci() {
+        n = parseInt(nInput.value); // 入力値を取得
+
+        // 入力値のバリデーション (最小値0)
+        if (isNaN(n) || n < 0) {
+          n = 0;
+          nInput.value = 0;
+        }
+
+        // DPテーブル（JavaScript配列）を初期化 (n+1 要素)
+        dp = Array(n + 1).fill(0);
+
+        // HTMLテーブルの内容をクリア
+        dpTableContainer.innerHTML = "";
+
+        // DPセル（HTML要素）を生成
+        for (let i = 0; i <= n; i++) {
+          const cell = document.createElement("div");
+          cell.classList.add("dp-cell");
+          cell.id = `cell-${i}`; // セルにIDを設定
+
+          const indexSpan = document.createElement("span");
+          indexSpan.classList.add("index");
+          indexSpan.textContent = `F(${i})`; // 項の表示
+
+          const valueSpan = document.createElement("span");
+          valueSpan.classList.add("value");
+          valueSpan.textContent = ""; // 初期値は空
+
+          cell.appendChild(indexSpan);
+          cell.appendChild(valueSpan);
+          dpTableContainer.appendChild(cell);
+        }
+
+        // 初期条件を設定 (F(0) = 0, F(1) = 1)
+        if (n >= 0) {
+          const cell0 = document.getElementById("cell-0");
+          if (cell0) {
+            cell0.querySelector(".value").textContent = 0;
+            dp[0] = 0;
+            cell0.classList.add("calculated"); // 計算済みとしてマーク
+          }
+        }
+        if (n >= 1) {
+          const cell1 = document.getElementById("cell-1");
+          if (cell1) {
+            cell1.querySelector(".value").textContent = 1;
+            dp[1] = 1;
+            cell1.classList.add("calculated"); // 計算済みとしてマーク
+          }
+        }
+
+        // 計算位置をリセット (インデックス2から計算開始)
+        currentIndex = 2;
+
+        // ボタンの状態をリセット
+        nextStepButton.disabled = n < 2; // nが2未満の場合は計算不要なのでボタン無効
+        nextStepButton.textContent = "次の項を計算"; // ボタンのテキストをリセット
+
+        // 結果表示エリアと計算式表示エリアをクリア
+        resultDiv.textContent = "";
+        formulaDisplay.textContent = "";
+
+        // 前回のハイライトを全て解除
+        document
+          .querySelectorAll(".calculating, .referenced")
+          .forEach((cell) => {
+            cell.classList.remove("calculating", "referenced", "calculated"); // calculatedもリセット
+            cell.style.backgroundColor = "#fff"; // 背景色をデフォルトに戻す
+            cell.style.fontWeight = "normal"; // フォントスタイルをデフォルトに戻す
+          });
+        // 初期条件のセルはcalculatedクラスを再度付与
+        if (n >= 0)
+          document.getElementById("cell-0")?.classList.add("calculated");
+        if (n >= 1)
+          document.getElementById("cell-1")?.classList.add("calculated");
+      }
+
+      // ページの読み込み時と入力値変更時、リセットボタンクリック時にテーブルを初期化
+      window.onload = initializeFibonacci;
+      nInput.addEventListener("change", initializeFibonacci);
+      resetButton.addEventListener("click", initializeFibonacci);
+
+      // 「次の項を計算」ボタンがクリックされた時の処理
+      nextStepButton.addEventListener("click", () => {
+        // 計算中の項が範囲内か確認
+        if (currentIndex <= n) {
+          // 現在のセルに対応するHTML要素を取得
+          const currentCell = document.getElementById(`cell-${currentIndex}`);
+
+          // 前回のハイライトを全て解除
+          document
+            .querySelectorAll(".calculating, .referenced")
+            .forEach((cell) => {
+              cell.classList.remove("calculating", "referenced");
+              // calculatedクラスを持つセルは背景色を維持
+              if (!cell.classList.contains("calculated")) {
+                cell.style.backgroundColor = "#fff";
+                cell.style.fontWeight = "normal";
+              } else {
+                cell.style.backgroundColor = "#aaffaa"; // 計算済みの色
+                cell.style.fontWeight = "bold";
+              }
+            });
+
+          // 現在計算中のセルをハイライト
+          currentCell.classList.add("calculating");
+          currentCell.style.backgroundColor = "#ffff99"; // 薄い黄色
+
+          // フィボナッチ数列の漸化式に基づいて値を計算
+          // dp[i] = dp[i-1] + dp[i-2]
+          const value1 = dp[currentIndex - 1]; // F(i-1) の値
+          const value2 = dp[currentIndex - 2]; // F(i-2) の値
+          dp[currentIndex] = value1 + value2;
+
+          // 計算式表示エリアを更新
+          formulaDisplay.textContent = `F(${currentIndex}) = F(${
+            currentIndex - 1
+          }) + F(${currentIndex - 2}) = ${value1} + ${value2} = ${
+            dp[currentIndex]
+          }`;
+
+          // 参照元のセルをハイライト (F(i-1) と F(i-2))
+          const refCell1 = document.getElementById(`cell-${currentIndex - 1}`);
+          const refCell2 = document.getElementById(`cell-${currentIndex - 2}`);
+          if (refCell1) {
+            refCell1.classList.add("referenced");
+            refCell1.style.backgroundColor = "#cceeff"; // 薄い青
+          }
+          if (refCell2) {
+            refCell2.classList.add("referenced");
+            refCell2.style.backgroundColor = "#cceeff"; // 薄い青
+          }
+
+          // 計算結果をHTMLセルに表示
+          currentCell.querySelector(".value").textContent = dp[currentIndex];
+          currentCell.classList.add("calculated"); // 計算済みとしてマーク
+          currentCell.style.backgroundColor = "#aaffaa"; // 完了したセルを緑色に
+          currentCell.style.fontWeight = "bold";
+
+          // 次の計算位置に進む
+          currentIndex++;
+
+          // 全ての項を計算し終えたか確認
+          if (currentIndex > n) {
+            nextStepButton.disabled = true; // ボタンを無効化
+            nextStepButton.textContent = "計算完了！"; // ボタンのテキストを更新
+            formulaDisplay.textContent = "計算完了！"; // 計算式表示を完了に
+            resultDiv.textContent = `F(${n}) = ${dp[n]}`; // 最終結果を表示
+
+            // 最後のセルをハイライト（完了色）
+            const finalCell = document.getElementById(`cell-${n}`);
+            if (finalCell) {
+              finalCell.style.backgroundColor = "#aaffaa"; // 完了したセルを緑色に
+              finalCell.style.fontWeight = "bold";
+              finalCell.classList.remove("calculating", "referenced"); // 計算中・参照クラスを削除
+            }
+          }
+        }
+        // もし全てのセルが埋まっていたら、このイベントリスナーは何もしない
+      });
+    </script>
+  </body>
+</html>

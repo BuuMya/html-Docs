@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ナップサック問題 DP計算デモ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        margin-top: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+      .controls label {
+        margin-right: 5px;
+        font-weight: bold;
+      }
+      .controls input[type="number"],
+      .controls input[type="text"] {
+        padding: 8px;
+        margin-right: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .controls input[type="number"] {
+        width: 60px;
+        text-align: center;
+      }
+      .controls input[type="text"] {
+        width: 200px; /* リスト入力の幅 */
+      }
+
+      table {
+        border-collapse: collapse; /* セルの境界線を重ねる */
+        margin: 20px auto; /* 上下の余白と左右中央揃え */
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* テーブルに影をつける */
+        font-size: 14px;
+      }
+      /* テーブルの全てのセル（th, td）に共通のスタイル */
+      table,
+      th,
+      td {
+        border: 1px solid #ddd; /* セルに枠線をつける */
+        padding: 8px; /* セル内の余白 */
+        text-align: center; /* セル内のテキストを中央寄せ */
+        height: 35px; /* セルの高さ */
+      }
+      /* データセル（td）の幅 */
+      table td {
+        width: 50px; /* データセルの幅を調整 */
+      }
+      /* ヘッダーセル（th）のスタイル */
+      th {
+        background-color: #f2f2f2; /* ヘッダーセルの背景色 */
+        font-weight: bold;
+      }
+      /* テーブルボディ内のヘッダーセル（行ヘッダー）の幅 */
+      table tbody th {
+        width: 150px; /* 行ヘッダーの幅を広く */
+        text-align: left; /* 左寄せ */
+      }
+      /* テーブルヘッダー内の左上のセル（品物 \ 容量）の幅 */
+      table thead th {
+        width: 150px; /* 行ヘッダーと合わせる */
+      }
+
+      /* 計算中のセルをハイライト */
+      td.calculating {
+        background-color: #ffff99; /* 薄い黄色 */
+        font-weight: bold;
+      }
+      /* 参照されたセルをハイライト */
+      td.referenced {
+        background-color: #cceeff; /* 薄い青 */
+      }
+      /* アイテムを採用した場合のセルをハイライト */
+      td.taken {
+        background-color: #ccffcc; /* 薄い緑 */
+        font-weight: bold;
+      }
+
+      .buttons {
+        margin-top: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px; /* 角を丸くする */
+        margin: 0 10px; /* ボタン間の余白 */
+        transition: background-color 0.3s ease; /* ホバー時のアニメーション */
+      }
+      button#nextStepButton {
+        background-color: #5cb85c; /* 緑色 */
+        color: white;
+      }
+      button#nextStepButton:hover:not(:disabled) {
+        background-color: #4cae4c; /* ホバー時の少し濃い緑 */
+      }
+      button#resetButton {
+        background-color: #f0ad4e; /* オレンジ色 */
+        color: white;
+      }
+      button#resetButton:hover:not(:disabled) {
+        background-color: #ec971f; /* ホバー時の少し濃いオレンジ */
+      }
+      /* ボタンが無効化された時のスタイル */
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        color: #666;
+      }
+      .formula {
+        margin-top: 15px;
+        font-size: 1.1em;
+        color: #555;
+        min-height: 1.5em; /* 式が表示されないときも高さを確保 */
+      }
+      .result {
+        margin-top: 20px;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #d9534f; /* 赤色 */
+      }
+      .item-info {
+        margin-top: 5px; /* 上の要素との間隔を調整 */
+        font-size: 0.9em;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ナップサック問題 DP計算デモ (0-1ナップサック)</h1>
+
+    <div class="controls">
+      <label for="capacityInput">容量 (W):</label>
+      <input type="number" id="capacityInput" value="10" min="0" />
+      <label for="weightsInput">重さ (カンマ区切り):</label>
+      <input type="text" id="weightsInput" value="2,3,4,5" />
+      <label for="valuesInput">価値 (カンマ区切り):</label>
+      <input type="text" id="valuesInput" value="3,4,5,6" />
+    </div>
+
+    <table id="knapsackTable">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="buttons">
+      <button id="nextStepButton" disabled>次のセルを計算</button>
+      <button id="resetButton">テーブルをリセット</button>
+    </div>
+
+    <div id="formulaDisplay" class="formula"></div>
+
+    <div id="result" class="result"></div>
+    <script>
+      // JavaScriptで必要な要素を取得
+      const capacityInput = document.getElementById("capacityInput");
+      const weightsInput = document.getElementById("weightsInput");
+      const valuesInput = document.getElementById("valuesInput");
+      const knapsackTable = document.getElementById("knapsackTable");
+      const nextStepButton = document.getElementById("nextStepButton");
+      const resetButton = document.getElementById("resetButton");
+      const formulaDisplay = document.getElementById("formulaDisplay"); // 計算式表示エリア
+      const resultDiv = document.getElementById("result"); // 結果表示エリア
+
+      let capacity = 0; // ナップサック容量
+      let weights = []; // 品物の重さリスト
+      let values = []; // 品物の価値リスト
+      let numItems = 0; // 品物の数
+      let dp = []; // DPテーブル（2次元配列 dp[i][w]）
+
+      let currentItemIndex = 0; // 現在計算中の品物のインデックス (0-based, DPテーブルでは行 i に対応)
+      let currentCapacity = 0; // 現在計算中の容量 (0-based, DPテーブルでは列 w に対応)
+
+      // DPテーブル（HTML表示）を初期化し、生成する関数
+      function initializeKnapsack() {
+        capacity = parseInt(capacityInput.value); // 容量を取得
+        // 重さと価値の文字列を取得し、カンマで分割して数値配列に変換
+        weights = weightsInput.value
+          .split(",")
+          .map(Number)
+          .filter((n) => !isNaN(n) && n > 0); // 有効な数値のみ
+        values = valuesInput.value
+          .split(",")
+          .map(Number)
+          .filter((n) => !isNaN(n) && n >= 0); // 有効な数値のみ
+
+        // 入力値のバリデーション
+        if (isNaN(capacity) || capacity < 0) {
+          capacity = 0;
+          capacityInput.value = 0;
+        }
+
+        // 重さと価値の配列長が異なる場合は、短い方に合わせる
+        numItems = Math.min(weights.length, values.length);
+        // 長さが異なる場合は入力フィールドの値を修正 (ユーザーに分かりやすくするため)
+        if (weights.length !== values.length) {
+          weightsInput.value = weights.join(",");
+          valuesInput.value = values.join(",");
+        }
+
+        // DPテーブル（JavaScript配列）を初期化 (dp[numItems + 1][capacity + 1])
+        // dp[i][w] は、最初の i 個の品物を使って、容量 w のナップサックに入れたときの最大価値
+        dp = Array(numItems + 1)
+          .fill(null)
+          .map(() => Array(capacity + 1).fill(0));
+
+        // HTMLテーブルの内容をクリア
+        knapsackTable.innerHTML = "";
+
+        // テーブルヘッダー (<thead>) を生成
+        const thead = knapsackTable.createTHead();
+        let headerRow = thead.insertRow();
+        headerRow.insertCell().textContent = "品物 \\ 容量"; // 左上のセル
+        // 容量ヘッダーを追加
+        for (let w = 0; w <= capacity; w++) {
+          headerRow.insertCell().textContent = w;
+        }
+
+        // テーブルボディ (<tbody>) を生成
+        const tbody = knapsackTable.createTBody();
+
+        // テーブルの各行とセルを生成
+        for (let i = 0; i <= numItems; i++) {
+          let row = tbody.insertRow();
+          const th = document.createElement("th");
+          if (i === 0) {
+            th.textContent = "なし"; // 品物0は「なし」
+          } else {
+            th.innerHTML = `品物${i}<div class="item-info">(重さ:${
+              weights[i - 1]
+            }, 価値:${values[i - 1]})</div>`; // 品物情報
+          }
+          row.appendChild(th);
+
+          for (let w = 0; w <= capacity; w++) {
+            const td = row.insertCell();
+            td.id = `cell-${i}-${w}`; // セルにIDを設定
+            td.textContent = dp[i][w]; // 初期値（0）を設定
+          }
+        }
+
+        // 計算位置をリセット (DPテーブルは1から開始)
+        currentItemIndex = 1;
+        currentCapacity = 1;
+
+        // ボタンの状態をリセット
+        nextStepButton.disabled = numItems === 0 || capacity === 0; // 品物がないか容量0なら計算不要
+        nextStepButton.textContent = "次のセルを計算"; // ボタンのテキストをリセット
+
+        // 結果表示エリアと計算式表示エリアをクリア
+        resultDiv.textContent = "";
+        formulaDisplay.textContent = "";
+
+        // 前回のハイライトを全て解除
+        document
+          .querySelectorAll(".calculating, .referenced, .taken")
+          .forEach((cell) => {
+            cell.classList.remove("calculating", "referenced", "taken");
+            cell.style.backgroundColor = "#fff"; // 背景色をデフォルトに戻す
+            cell.style.fontWeight = "normal"; // フォントスタイルをデフォルトに戻す
+          });
+      }
+
+      // ページの読み込み時と入力値変更時、リセットボタンクリック時にテーブルを初期化
+      window.onload = initializeKnapsack;
+      capacityInput.addEventListener("change", initializeKnapsack);
+      weightsInput.addEventListener("change", initializeKnapsack);
+      valuesInput.addEventListener("change", initializeKnapsack);
+      resetButton.addEventListener("click", initializeKnapsack);
+
+      // 「次のセルを計算」ボタンがクリックされた時の処理
+      nextStepButton.addEventListener("click", () => {
+        // 計算中のセルがテーブルの範囲内か確認
+        if (currentItemIndex <= numItems && currentCapacity <= capacity) {
+          // 現在のセルに対応するHTML要素を取得
+          const currentCell = document.getElementById(
+            `cell-${currentItemIndex}-${currentCapacity}`
+          );
+
+          // 前回のハイライトを全て解除
+          document
+            .querySelectorAll(".calculating, .referenced, .taken")
+            .forEach((cell) => {
+              cell.classList.remove("calculating", "referenced", "taken");
+              cell.style.backgroundColor = "#fff"; // 背景色をデフォルトに戻す
+              cell.style.fontWeight = "normal"; // フォントスタイルをデフォルトに戻す
+            });
+
+          // 現在計算中のセルをハイライト
+          currentCell.classList.add("calculating");
+          currentCell.style.backgroundColor = "#ffff99"; // 薄い黄色
+
+          let formulaText = ""; // 表示する計算式テキスト
+          const currentWeight = weights[currentItemIndex - 1]; // 現在の品物の重さ
+          const currentValue = values[currentItemIndex - 1]; // 現在の品物の価値
+
+          // ナップサック問題の漸化式に基づいて値を計算
+          // dp[i][w] = max( dp[i-1][w], dp[i-1][w - weight[i-1]] + value[i-1] )
+          // ただし、w >= weight[i-1] の場合のみ品物 i を入れる選択肢がある
+
+          const valueWithoutItem = dp[currentItemIndex - 1][currentCapacity]; // 品物 i を入れない場合の値 (上のセル)
+
+          if (currentWeight > currentCapacity) {
+            // 現在の品物が現在の容量より重い場合
+            dp[currentItemIndex][currentCapacity] = valueWithoutItem;
+            formulaText = `品物${currentItemIndex} (重さ:${currentWeight}) は容量 ${currentCapacity} より重いため入りません。 dp[${currentItemIndex}][${currentCapacity}] = dp[${
+              currentItemIndex - 1
+            }][${currentCapacity}] = ${valueWithoutItem}`;
+
+            // 参照元のセルをハイライト (dp[i-1][w])
+            const refCell = document.getElementById(
+              `cell-${currentItemIndex - 1}-${currentCapacity}`
+            );
+            if (refCell) {
+              refCell.classList.add("referenced");
+              refCell.style.backgroundColor = "#cceeff"; // 薄い青
+            }
+          } else {
+            // 現在の品物を入れることができる場合
+            const remainingCapacity = currentCapacity - currentWeight;
+            const valueWithItem =
+              dp[currentItemIndex - 1][remainingCapacity] + currentValue; // 品物 i を入れた場合の値
+
+            if (valueWithItem > valueWithoutItem) {
+              // 品物 i を入れた方が価値が高くなる場合
+              dp[currentItemIndex][currentCapacity] = valueWithItem;
+              formulaText = `品物${currentItemIndex} (重さ:${currentWeight}, 価値:${currentValue}) を入れます。 dp[${currentItemIndex}][${currentCapacity}] = dp[${
+                currentItemIndex - 1
+              }][${remainingCapacity}] + ${currentValue} = ${
+                dp[currentItemIndex - 1][remainingCapacity]
+              } + ${currentValue} = ${valueWithItem}`;
+              currentCell.classList.add("taken"); // アイテムを採用したセルをハイライト
+
+              // 参照元のセルをハイライト (dp[i-1][w - weight[i-1]])
+              const refCell = document.getElementById(
+                `cell-${currentItemIndex - 1}-${remainingCapacity}`
+              );
+              if (refCell) {
+                refCell.classList.add("referenced");
+                refCell.style.backgroundColor = "#cceeff"; // 薄い青
+              }
+            } else {
+              // 品物 i を入れない方が価値が高くなるか同等の場合
+              dp[currentItemIndex][currentCapacity] = valueWithoutItem;
+              formulaText = `品物${currentItemIndex} (重さ:${currentWeight}, 価値:${currentValue}) は入れません。 dp[${currentItemIndex}][${currentCapacity}] = dp[${
+                currentItemIndex - 1
+              }][${currentCapacity}] = ${valueWithoutItem}`;
+
+              // 参照元のセルをハイライト (dp[i-1][w])
+              const refCell = document.getElementById(
+                `cell-${currentItemIndex - 1}-${currentCapacity}`
+              );
+              if (refCell) {
+                refCell.classList.add("referenced");
+                refCell.style.backgroundColor = "#cceeff"; // 薄い青
+              }
+            }
+          }
+
+          // 計算結果をHTMLテーブルに表示
+          currentCell.textContent = dp[currentItemIndex][currentCapacity];
+          currentCell.style.fontWeight = "bold"; // 計算済みのセルは太字に
+
+          // 計算式表示エリアを更新
+          formulaDisplay.textContent = formulaText;
+
+          // 次の計算位置に進む
+          currentCapacity++;
+          if (currentCapacity > capacity) {
+            // 現在の行の最後まで計算したら、次の行の先頭へ
+            currentCapacity = 1;
+            currentItemIndex++;
+          }
+
+          // 全てのセルを埋め終わったか確認
+          if (currentItemIndex > numItems) {
+            nextStepButton.disabled = true; // ボタンを無効化
+            nextStepButton.textContent = "計算完了！"; // ボタンのテキストを更新
+            formulaDisplay.textContent = "計算完了！"; // 計算式表示を完了に
+            resultDiv.textContent = `最大価値: ${dp[numItems][capacity]}`; // 最終結果を表示
+
+            // 最後のセルをハイライト（完了色）
+            const finalCell = document.getElementById(
+              `cell-${numItems}-${capacity}`
+            );
+            if (finalCell) {
+              finalCell.style.backgroundColor = "#aaffaa"; // 完了したセルを緑色に
+              finalCell.style.fontWeight = "bold";
+              finalCell.classList.remove("calculating", "referenced", "taken"); // 計算中・参照・採用クラスを削除
+            }
+          }
+        }
+        // もし全てのセルが埋まっていたら、このイベントリスナーは何もしない
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>動的計画法デモ一覧</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+        text-align: center;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 30px;
+      }
+      .demo-list {
+        list-style: none;
+        padding: 0;
+        display: flex; /* グリッドまたはリスト表示のためFlexboxを使用 */
+        flex-wrap: wrap; /* 画面幅に合わせて折り返す */
+        justify-content: center; /* 中央寄せ */
+        gap: 20px; /* 要素間の隙間 */
+      }
+      .demo-list-item {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        width: 250px; /* 各要素の幅 */
+        text-align: left;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .demo-list-item:hover {
+        transform: translateY(-5px); /* ホバーで少し浮かせる */
+        box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+      }
+      .demo-list-item a {
+        text-decoration: none; /* 下線をなくす */
+        color: #007bff; /* リンクの色 */
+        font-size: 1.2em;
+        font-weight: bold;
+        display: block; /* 要素全体をリンクにする */
+      }
+      .demo-list-item a:hover {
+        color: #0056b3; /* ホバー時のリンクの色 */
+      }
+      .demo-list-item p {
+        font-size: 0.9em;
+        color: #555;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>学習用DP配列可視化PG</h1>
+
+    <ul class="demo-list">
+      <li class="demo-list-item">
+        <a href="動的計画法_最長共通部分問題.html"
+          >最長共通部分列/文字列 (LCS/LCSstr) デモ</a
+        >
+        <p>文字列のLCSおよびLCSstrをDPで計算する過程をステップ実行できます。</p>
+      </li>
+      <li class="demo-list-item">
+        <a href="動的計画法_フィボナッチ数列問題.html"
+          >フィボナッチ数列 DP計算デモ</a
+        >
+        <p>
+          フィボナッチ数列や類似の漸化式による数列のDP計算をステップ実行できます。
+        </p>
+      </li>
+      <li class="demo-list-item">
+        <a href="動的計画法_ナップサック問題.html">ナップサック問題 デモ</a>
+        <p>ナップサック問題をDPで計算する過程をステップ実行できます。</p>
+      </li>
+    </ul>
+  </body>
+</html>
